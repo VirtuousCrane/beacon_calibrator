@@ -14,7 +14,8 @@ struct Beacon {
 #[derive(Clone)]
 struct BeaconCount {
     rssi: i32,
-    count: i32
+    count: i32,
+    diff: i32,
 }
 
 #[tokio::main]
@@ -63,7 +64,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let rssi_product = s.rssi * s.count;
                         let new_count = s.count + 1;
                         let avg_rssi = (rssi_product + data_struct.rssi) / new_count;
-                        let new_struct = BeaconCount { rssi: avg_rssi, count: new_count };
+                        let diff = s.rssi.abs_diff(data_struct.rssi);
+                        let diff: i32 = if avg_rssi.abs() < data_struct.rssi.abs() { diff as i32 } else { -1 * diff as i32 };
+                        let new_struct = BeaconCount { rssi: avg_rssi, count: new_count, diff };
                         
                         map.insert(
                             data_struct.mac_address.clone(),
@@ -72,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         new_struct
                     },
                     None => {
-                        let new_struct = BeaconCount { rssi: data_struct.rssi, count: 1 };
+                        let new_struct = BeaconCount { rssi: data_struct.rssi, count: 1, diff: 0 };
                         map.insert(
                             data_struct.mac_address.clone(),
                             new_struct.clone()
@@ -86,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } 
                 
                 let handle = client_handle_arc.lock().await;
-                let text = format!("{{ \"macAddress\": \"{}\", \"rssi\": {} }}", data_struct.mac_address, result.rssi);
+                let text = format!("{{ \"macAddress\": \"{}\", \"rssi\": {}, \"diff\": {} }}", data_struct.mac_address, result.rssi, result.diff);
                 let _publish_result = handle.publish("LOLICON/BEACON/CALIBRATION", QoS::AtLeastOnce, false, text).await;
             });
         };
