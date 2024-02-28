@@ -1,27 +1,9 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use rumqttc::{AsyncClient, MqttOptions, Packet, QoS};
-use serde::{Serialize, Deserialize};
 use tokio::sync::Mutex;
+use beacon_calibrator::data_types::*;
 
-#[derive(Serialize, Deserialize)]
-struct BeaconList {
-    beacons: Vec<Beacon>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Beacon {
-    #[serde(rename = "macAddress")]
-    mac_address: String,
-    rssi: i32
-}
-
-#[derive(Clone)]
-struct BeaconCount {
-    rssi: i32,
-    count: i32,
-    diff: i32,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
