@@ -5,6 +5,11 @@ use serde::{Serialize, Deserialize};
 use tokio::sync::Mutex;
 
 #[derive(Serialize, Deserialize)]
+struct BeaconList {
+    beacons: Vec<Beacon>,
+}
+
+#[derive(Serialize, Deserialize)]
 struct Beacon {
     #[serde(rename = "macAddress")]
     mac_address: String,
@@ -44,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             
             let data = String::from_utf8_lossy(&payload);
-            let data_struct: Beacon = match serde_json::from_str(&data) {
+            let data_struct: BeaconList = match serde_json::from_str(&data) {
                 Ok(b) => b,
                 Err(e) => {
                     println!("Invalid Format: {}", e.to_string());
@@ -56,41 +61,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let client_handle_arc = Arc::clone(&client_handle);
 
             tokio::spawn(async move {
-                let mut map = map_arc.lock().await;
-                let data_count = map.get(&data_struct.mac_address);
+                for beacon_data in data_struct.beacons {
+                    let mut map = map_arc.lock().await;
+                    let data_count = map.get(&beacon_data.mac_address);
 
-                let result = match data_count {
-                    Some(s) => {
-                        let rssi_product = s.rssi * s.count;
-                        let new_count = s.count + 1;
-                        let avg_rssi = (rssi_product + data_struct.rssi) / new_count;
-                        let diff = s.rssi.abs_diff(data_struct.rssi);
-                        let diff: i32 = if avg_rssi.abs() < data_struct.rssi.abs() { diff as i32 } else { -1 * diff as i32 };
-                        let new_struct = BeaconCount { rssi: avg_rssi, count: new_count, diff };
-                        
-                        map.insert(
-                            data_struct.mac_address.clone(),
-                            new_struct.clone()
-                        );
-                        new_struct
-                    },
-                    None => {
-                        let new_struct = BeaconCount { rssi: data_struct.rssi, count: 1, diff: 0 };
-                        map.insert(
-                            data_struct.mac_address.clone(),
-                            new_struct.clone()
-                        );
-                        new_struct
-                    }
-                };
-                
-                if result.count < 5 {
-                    return;
-                } 
-                
-                let handle = client_handle_arc.lock().await;
-                let text = format!("{{ \"macAddress\": \"{}\", \"rssi\": {}, \"diff\": {} }}", data_struct.mac_address, result.rssi, result.diff);
-                let _publish_result = handle.publish("LOLICON/BEACON/CALIBRATION", QoS::AtLeastOnce, false, text).await;
+                    let result = match data_count {
+                        Some(s) => {
+                            let rssi_product = s.rssi * s.count;
+                            let new_count = s.count + 1;
+                            let avg_rssi = (rssi_product + beacon_data.rssi) / new_count;
+                            let diff = s.rssi.abs_diff(beacon_data.rssi);
+                            let diff: i32 = if avg_rssi.abs() < beacon_data.rssi.abs() { diff as i32 } else { -1 * diff as i32 };
+                            let new_struct = BeaconCount { rssi: avg_rssi, count: new_count, diff };
+                            
+                            map.insert(
+                                beacon_data.mac_address.clone(),
+                                new_struct.clone()
+                            );
+                            new_struct
+                        },
+                        None => {
+                            let new_struct = BeaconCount { rssi: beacon_data.rssi, count: 1, diff: 0 };
+                            map.insert(
+                                beacon_data.mac_address.clone(),
+                                new_struct.clone()
+                            );
+                            new_struct
+                        }
+                    };
+                    
+                    if result.count < 5 {
+                        return;
+                    } 
+                    
+                    let handle = client_handle_arc.lock().await;
+                    let text = format!("{{ \"macAddress\": \"{}\", \"rssi\": {}, \"diff\": {} }}", beacon_data.mac_address, result.rssi, result.diff);
+                    let _publish_result = handle.publish("LOLICON/BEACON/CALIBRATION", QoS::AtLeastOnce, false, text).await;
+                }
             });
         };
     };
