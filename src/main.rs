@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     
                     if result.count < 5 {
-                        return;
+                        continue;
                     } 
                     
                     let handle = client_handle_arc.lock().await;
