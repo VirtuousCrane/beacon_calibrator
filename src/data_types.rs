@@ -16,7 +16,7 @@ pub struct Beacon {
 }
 
 #[derive(Clone)]
-pub struct BeaconCount {
+pub struct BeaconDiff {
     pub rssi: i32,
     pub count: i32,
     pub diff: i32,

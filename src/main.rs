@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     let client_handle: Arc<Mutex<AsyncClient>> = Arc::new(Mutex::new(client));
     
-    let beacon_map: Arc<Mutex<HashMap<String, BeaconCount>>> = Arc::new(Mutex::new(HashMap::new()));
+    let beacon_map: Arc<Mutex<HashMap<String, BeaconDiff>>> = Arc::new(Mutex::new(HashMap::new()));
     
     while let Ok(notification) = eventloop.poll().await {
         let packet = match notification {
@@ -45,16 +45,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tokio::spawn(async move {
                 for beacon_data in data_struct.beacons {
                     let mut map = map_arc.lock().await;
-                    let data_count = map.get(&beacon_data.mac_address);
+                    let data_diff = map.get(&beacon_data.mac_address);
 
-                    let result = match data_count {
+                    let result = match data_diff {
                         Some(s) => {
                             let rssi_product = s.rssi * s.count;
                             let new_count = s.count + 1;
                             let avg_rssi = (rssi_product + beacon_data.rssi) / new_count;
                             let diff = s.rssi.abs_diff(beacon_data.rssi);
                             let diff: i32 = if avg_rssi.abs() < beacon_data.rssi.abs() { diff as i32 } else { -1 * diff as i32 };
-                            let new_struct = BeaconCount { rssi: avg_rssi, count: new_count, diff };
+                            let new_struct = BeaconDiff { rssi: avg_rssi, count: new_count, diff };
                             
                             map.insert(
                                 beacon_data.mac_address.clone(),
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_struct
                         },
                         None => {
-                            let new_struct = BeaconCount { rssi: beacon_data.rssi, count: 1, diff: 0 };
+                            let new_struct = BeaconDiff { rssi: beacon_data.rssi, count: 1, diff: 0 };
                             map.insert(
                                 beacon_data.mac_address.clone(),
                                 new_struct.clone()
