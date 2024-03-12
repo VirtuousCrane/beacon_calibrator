@@ -44,7 +44,7 @@ pub fn get_new_beacon_diff(beacon_data: &Beacon, old_diff: Option<BeaconDiff>) -
     new_diff
 }
 
-/// Gets a set of old BeaconDiff Object for Beacons in the BeaconList Object
+/// Gets a set of new BeaconDiff Object for Beacons in the BeaconList Object
 pub async fn get_beacon_diff(map_arc: Arc<Mutex<HashMap<String, BeaconDiff>>>, beacon_list: &BeaconList) -> Vec<BeaconDiff> {
     let lock = map_arc.lock();
     let mut map = lock.await;

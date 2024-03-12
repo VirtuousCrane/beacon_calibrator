@@ -3,7 +3,11 @@ pub mod program_logic;
 
 #[cfg(test)]
 mod tests {
-    use crate::{data_types::*, program_logic::get_new_beacon_diff};
+    use std::{collections::HashMap, sync::Arc};
+
+    use tokio::sync::Mutex;
+
+    use crate::{data_types::*, program_logic::{get_beacon_diff, get_new_beacon_diff}};
 
     #[test]
     fn json_deserialize_test() {
@@ -57,6 +61,55 @@ mod tests {
         
         // Verify
         let expected = BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69, count: 1, diff: 0 };
+        assert_eq!(expected, result);
+    }
+
+    #[tokio::test]
+    async fn get_beacon_diff_test() {
+        // Setup
+        let mut map: HashMap<String, BeaconDiff> = HashMap::new();
+        map.insert("FF:FF:FF:FF:FF:FF".into(), BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -40, count: 1, diff: 0 });
+
+        let map_arc = Arc::new(Mutex::new(map));
+        let beacon = Beacon { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69 };
+        let beacon_list = BeaconList { beacons: vec![beacon] };
+
+        // Execute
+        let result = get_beacon_diff(map_arc, &beacon_list).await;
+
+        // Verify
+        let expected = vec![ BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -54, count: 2, diff: 29} ];
+        assert_eq!(expected, result);
+    }
+
+    #[tokio::test]
+    async fn get_beacon_diff_test_empty_map() {
+        // Setup
+        let map: HashMap<String, BeaconDiff> = HashMap::new();
+        let map_arc = Arc::new(Mutex::new(map));
+        let beacon = Beacon { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69 };
+        let beacon_list = BeaconList { beacons: vec![beacon] };
+
+        // Execute
+        let result = get_beacon_diff(map_arc, &beacon_list).await;
+
+        // Verify
+        let expected = vec![ BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69, count: 1, diff: 0} ];
+        assert_eq!(expected, result);
+    }
+
+    #[tokio::test]
+    async fn get_beacon_diff_test_empty_list() {
+        // Setup
+        let map: HashMap<String, BeaconDiff> = HashMap::new();
+        let map_arc = Arc::new(Mutex::new(map));
+        let beacon_list = BeaconList { beacons: Vec::new() };
+
+        // Execute
+        let result = get_beacon_diff(map_arc, &beacon_list).await;
+
+        // Verify
+        let expected: Vec<BeaconDiff> = Vec::new();
         assert_eq!(expected, result);
     }
 }
