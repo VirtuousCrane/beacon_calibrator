@@ -45,4 +45,18 @@ mod tests {
         let expected = BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -44, count: 6, diff: 29 };
         assert_eq!(expected, result);
     }
+
+    #[test]
+    fn get_new_beacon_diff_test_old_diff_none() {
+        // Setup
+        let beacon = Beacon { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69 };
+        let old_diff = None;
+
+        // Execute
+        let result = get_new_beacon_diff(&beacon, old_diff);
+        
+        // Verify
+        let expected = BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69, count: 1, diff: 0 };
+        assert_eq!(expected, result);
+    }
 }
