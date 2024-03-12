@@ -3,7 +3,7 @@ pub mod program_logic;
 
 #[cfg(test)]
 mod tests {
-    use crate::data_types::*;
+    use crate::{data_types::*, program_logic::get_new_beacon_diff};
 
     #[test]
     fn json_deserialize_test() {
@@ -30,5 +30,19 @@ mod tests {
         };
 
         assert_eq!(expected_struct.beacons, data_struct.unwrap().beacons)
+    }
+
+    #[test]
+    fn get_new_beacon_diff_test() {
+        // Setup
+        let beacon = Beacon { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69 };
+        let old_diff = Some(BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -40, count: 5, diff: 0 });
+
+        // Execute
+        let result = get_new_beacon_diff(&beacon, old_diff);
+        
+        // Verify
+        let expected = BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -44, count: 6, diff: 29 };
+        assert_eq!(expected, result);
     }
 }

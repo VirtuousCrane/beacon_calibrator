@@ -15,7 +15,7 @@ pub struct Beacon {
     pub rssi: i32
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct BeaconDiff {
     pub mac_address: String,
     pub rssi: i32,
