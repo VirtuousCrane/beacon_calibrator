@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client.subscribe("LOLICON/BEACON", QoS::AtMostOnce)
         .await
         .unwrap();
-    let client_handle: Arc<Mutex<AsyncClient>> = Arc::new(Mutex::new(client));
+    let client_handle: Arc<AsyncClient> = Arc::new(client);
     
     let beacon_map: Arc<Mutex<HashMap<String, BeaconDiff>>> = Arc::new(Mutex::new(HashMap::new()));
     
@@ -44,14 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let client_handle_arc = Arc::clone(&client_handle);
 
             tokio::spawn(async move {
-                let mut beacon_processor_handle = Vec::new();
-
-                for beacon_data in data_struct.beacons.iter() {
-                    let data_diff = get_diff_from_map_arc(map_arc.clone(), &beacon_data.mac_address).await;
-                    let process_handle = process_beacon_data(beacon_data, data_diff, map_arc.clone(), client_handle_arc.clone());
-                    beacon_processor_handle.push(process_handle);
-                }
-                let _result = join_all(beacon_processor_handle).await;
+                let beacon_diff = get_beacon_diff(map_arc.clone(), &data_struct).await;
+                send_beacon_data(beacon_diff, client_handle_arc.clone()).await;
             });
         };
     };
@@ -59,19 +53,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn process_beacon_data(beacon_data: &Beacon, old_diff: Option<BeaconDiff>, map_arc: Arc<Mutex<HashMap<String, BeaconDiff>>>, mqtt_client_arc: Arc<Mutex<AsyncClient>>) {
-    let beacon_diff = get_beacon_diff(beacon_data, old_diff, map_arc).await;
+async fn send_beacon_data(beacon_diff_list: Vec<BeaconDiff>, mqtt_client_arc: Arc<AsyncClient>) {
+    let mut mqtt_send_handle = Vec::new();
+
+    for beacon_diff in beacon_diff_list.iter() {
+        if beacon_diff.count < 5 {
+            continue;
+        }
+
+        let text = format!("{{ \"macAddress\": \"{}\", \"rssi\": {}, \"diff\": {} }}", beacon_diff.mac_address, beacon_diff.rssi, beacon_diff.diff);
+        let publish_handle = mqtt_client_arc.publish("LOLICON/BEACON/CALIBRATION", QoS::AtLeastOnce, false, text);
+        mqtt_send_handle.push(publish_handle);
+    }
     
-    if beacon_diff.count < 5 {
-        return;
-    } 
-    
-    let handle = mqtt_client_arc.lock().await;
-    let text = format!("{{ \"macAddress\": \"{}\", \"rssi\": {}, \"diff\": {} }}", beacon_diff.mac_address, beacon_diff.rssi, beacon_diff.diff);
-    let _publish_handle = handle.publish("LOLICON/BEACON/CALIBRATION", QoS::AtLeastOnce, false, text).await;
+    join_all(mqtt_send_handle).await;
 }
 
-async fn get_beacon_diff(beacon_data: &Beacon, old_diff: Option<BeaconDiff>, map_arc: Arc<Mutex<HashMap<String, BeaconDiff>>>) -> BeaconDiff {
+fn get_new_beacon_diff(beacon_data: &Beacon, old_diff: Option<BeaconDiff>) -> BeaconDiff {
     let new_diff = match old_diff {
         Some(s) => {
             let rssi_product = s.rssi * s.count;
@@ -88,16 +86,24 @@ async fn get_beacon_diff(beacon_data: &Beacon, old_diff: Option<BeaconDiff>, map
         }
     };
     
-    let mut map_guard = map_arc.lock().await;
-    map_guard.insert(beacon_data.mac_address.clone(), new_diff.clone());
-    
-    return new_diff;
+    new_diff
 }
 
-async fn get_diff_from_map_arc(map_arc: Arc<Mutex<HashMap<String, BeaconDiff>>>, key: &String) -> Option<BeaconDiff> {
-    let map_lock = map_arc.lock().await;
-    match map_lock.get(key) {
-        Some(obj) => Some(obj.clone()),
-        None => None
+async fn get_beacon_diff(map_arc: Arc<Mutex<HashMap<String, BeaconDiff>>>, beacon_list: &BeaconList) -> Vec<BeaconDiff> {
+    let lock = map_arc.lock();
+    let mut map = lock.await;
+    let mut new_beacon_diff: Vec<BeaconDiff> = Vec::new();
+    
+    for beacon in beacon_list.beacons.iter() {
+        let old_diff = match map.get(&beacon.mac_address) {
+            Some(obj) => Some(obj.clone()),
+            None => None
+        };
+        
+        let new_diff = get_new_beacon_diff(beacon, old_diff);
+        new_beacon_diff.push(new_diff.clone());
+        map.insert(beacon.mac_address.clone(), new_diff);
     }
+
+    return new_beacon_diff;
 }
