@@ -112,4 +112,28 @@ mod tests {
         let expected: Vec<BeaconDiff> = Vec::new();
         assert_eq!(expected, result);
     }
+    
+    #[tokio::test]
+    async fn get_beacon_diff_test_multiple_beacons() {
+        // Setup
+        let mut map: HashMap<String, BeaconDiff> = HashMap::new();
+        map.insert("FF:FF:FF:FF:FF:FF".into(), BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -40, count: 1, diff: 0 });
+        map.insert("AA:AA:AA:AA:AA:AA".into(), BeaconDiff { mac_address: "AA:AA:AA:AA:AA:AA".into(), rssi: -50, count: 2, diff: 0 });
+
+        let map_arc = Arc::new(Mutex::new(map));
+
+        let beacon_1 = Beacon { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69 };
+        let beacon_2 = Beacon { mac_address: "AA:AA:AA:AA:AA:AA".into(), rssi: -30 };
+        let beacon_list = BeaconList { beacons: vec![beacon_1, beacon_2] };
+
+        // Execute
+        let result = get_beacon_diff(map_arc, &beacon_list).await;
+
+        // Verify
+        let expected_1 = BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -54, count: 2, diff: 29};
+        let expected_2 = BeaconDiff { mac_address: "AA:AA:AA:AA:AA:AA".into(), rssi: -43, count: 3, diff: -20};
+        let expected = vec![ expected_1, expected_2 ];
+
+        assert_eq!(expected, result);
+    }
 }
