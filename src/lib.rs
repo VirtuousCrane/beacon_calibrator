@@ -11,11 +11,12 @@ mod tests {
 
     #[test]
     fn json_deserialize_test() {
-        let input_string = "{\"beacons\":[{\"macAddress\":\"7c:87:ce:49:29:2a\",\"rssi\":-63}]}";
+        let input_string = "{\"device_identifier\":\"dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1\",\"beacons\":[{\"macAddress\":\"34:ab:95:73:5a:9a\",\"rssi\":-48}]}";
         let data_struct: Result<BeaconList, serde_json::Error> = serde_json::from_str(&input_string);
 
         let expected_struct = BeaconList {
-            beacons: vec![Beacon { mac_address: "7c:87:ce:49:29:2a".into(), rssi: -63 }],
+            device_identifier: "dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1".into(),
+            beacons: vec![Beacon { mac_address: "34:ab:95:73:5a:9a".into(), rssi: -48 }],
         };
 
         assert_eq!(expected_struct.beacons, data_struct.unwrap().beacons);
@@ -23,13 +24,14 @@ mod tests {
     
     #[test]
     fn json_deserialize_multiple_test() {
-        let input_string = "{\"beacons\":[{\"macAddress\":\"34:ab:95:73:5a:9a\",\"rssi\":-67},{\"macAddress\":\"7c:87:ce:49:2b:82\",\"rssi\":-42}]}";
+        let input_string = "{\"device_identifier\":\"dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1\",\"beacons\":[{\"macAddress\":\"34:ab:95:73:5a:9a\",\"rssi\":-67},{\"macAddress\":\"7c:87:ce:49:2b:82\",\"rssi\":-42}]}";
         
         let data_struct: Result<BeaconList, serde_json::Error> = serde_json::from_str(&input_string);
 
         let beacon_1 = Beacon { mac_address: "34:ab:95:73:5a:9a".into(), rssi: -67 };
         let beacon_2 = Beacon { mac_address: "7c:87:ce:49:2b:82".into(), rssi: -42 };
         let expected_struct = BeaconList {
+            device_identifier: "dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1".into(),
             beacons: vec![beacon_1, beacon_2],
         };
 
@@ -72,7 +74,10 @@ mod tests {
 
         let map_arc = Arc::new(Mutex::new(map));
         let beacon = Beacon { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69 };
-        let beacon_list = BeaconList { beacons: vec![beacon] };
+        let beacon_list = BeaconList { 
+            device_identifier: "dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1".into(),
+            beacons: vec![beacon]
+        };
 
         // Execute
         let result = get_beacon_diff(map_arc, &beacon_list).await;
@@ -88,7 +93,10 @@ mod tests {
         let map: HashMap<String, BeaconDiff> = HashMap::new();
         let map_arc = Arc::new(Mutex::new(map));
         let beacon = Beacon { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69 };
-        let beacon_list = BeaconList { beacons: vec![beacon] };
+        let beacon_list = BeaconList { 
+            device_identifier: "dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1".into(),
+            beacons: vec![beacon]
+        };
 
         // Execute
         let result = get_beacon_diff(map_arc, &beacon_list).await;
@@ -103,7 +111,10 @@ mod tests {
         // Setup
         let map: HashMap<String, BeaconDiff> = HashMap::new();
         let map_arc = Arc::new(Mutex::new(map));
-        let beacon_list = BeaconList { beacons: Vec::new() };
+        let beacon_list = BeaconList { 
+            device_identifier: "dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1".into(),
+            beacons: Vec::new()
+        };
 
         // Execute
         let result = get_beacon_diff(map_arc, &beacon_list).await;

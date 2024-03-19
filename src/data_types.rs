@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Serialize, Deserialize)]
 #[derive(PartialEq)]
 pub struct BeaconList {
+    pub device_identifier: String,
     pub beacons: Vec<Beacon>,
 }
 
