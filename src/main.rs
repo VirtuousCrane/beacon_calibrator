@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     let client_handle: Arc<AsyncClient> = Arc::new(client);
     
-    let beacon_map: Arc<Mutex<HashMap<String, BeaconDiff>>> = Arc::new(Mutex::new(HashMap::new()));
+    let beacon_map: BeaconDiffMapArc = Arc::new(Mutex::new(HashMap::new()));
     
     while let Ok(notification) = eventloop.poll().await {
         let packet = match notification {
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             tokio::spawn(async move {
                 let beacon_diff = get_beacon_diff(map_arc.clone(), &data_struct).await;
-                send_beacon_data(beacon_diff, client_handle_arc.clone()).await;
+                send_beacon_data(&data_struct.device_identifier, beacon_diff, client_handle_arc.clone()).await;
             });
         };
     };
