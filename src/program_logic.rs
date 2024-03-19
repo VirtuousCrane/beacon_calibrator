@@ -1,13 +1,12 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use futures::future::join_all;
 use rumqttc::{AsyncClient, QoS};
-use tokio::sync::Mutex;
 
-use crate::data_types::{Beacon, BeaconDiff, BeaconList};
+use crate::data_types::{Beacon, BeaconDiff, BeaconDiffMapArc, BeaconList};
 
 /// Takes a Vector of BeaconDiff objects and send it to an MQTT Stream as JSON
-pub async fn send_beacon_data(beacon_diff_list: Vec<BeaconDiff>, mqtt_client_arc: Arc<AsyncClient>) {
+pub async fn send_beacon_data(calibration_device_identifier: &String, beacon_diff_list: Vec<BeaconDiff>, mqtt_client_arc: Arc<AsyncClient>) {
     let mut mqtt_send_handle = Vec::new();
 
     for beacon_diff in beacon_diff_list.iter() {
@@ -15,7 +14,13 @@ pub async fn send_beacon_data(beacon_diff_list: Vec<BeaconDiff>, mqtt_client_arc
             continue;
         }
 
-        let text = format!("{{ \"macAddress\": \"{}\", \"rssi\": {}, \"diff\": {} }}", beacon_diff.mac_address, beacon_diff.rssi, beacon_diff.diff);
+        let text = format!(
+            "{{ \"device_identifier\": \"{}\", \"mac_address\": \"{}\", \"rssi\": {}, \"diff\": {} }}",
+            calibration_device_identifier,
+            beacon_diff.mac_address,
+            beacon_diff.rssi,
+            beacon_diff.diff
+        );
         let publish_handle = mqtt_client_arc.publish("LOLICON/BEACON/CALIBRATION", QoS::AtLeastOnce, false, text);
         mqtt_send_handle.push(publish_handle);
     }
@@ -45,20 +50,20 @@ pub fn get_new_beacon_diff(beacon_data: &Beacon, old_diff: Option<BeaconDiff>) -
 }
 
 /// Gets a set of new BeaconDiff Object for Beacons in the BeaconList Object
-pub async fn get_beacon_diff(map_arc: Arc<Mutex<HashMap<String, BeaconDiff>>>, beacon_list: &BeaconList) -> Vec<BeaconDiff> {
+pub async fn get_beacon_diff(map_arc: BeaconDiffMapArc, beacon_list: &BeaconList) -> Vec<BeaconDiff> {
     let lock = map_arc.lock();
     let mut map = lock.await;
     let mut new_beacon_diff: Vec<BeaconDiff> = Vec::new();
     
     for beacon in beacon_list.beacons.iter() {
-        let old_diff = match map.get(&beacon.mac_address) {
+        let old_diff = match map.get(&(beacon_list.device_identifier.clone(), beacon.mac_address.clone())) {
             Some(obj) => Some(obj.clone()),
             None => None
         };
         
         let new_diff = get_new_beacon_diff(beacon, old_diff);
         new_beacon_diff.push(new_diff.clone());
-        map.insert(beacon.mac_address.clone(), new_diff);
+        map.insert((beacon_list.device_identifier.clone(), beacon.mac_address.clone()), new_diff);
     }
 
     return new_beacon_diff;

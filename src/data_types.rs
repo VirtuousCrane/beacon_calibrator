@@ -1,5 +1,10 @@
-use serde::{Serialize, Deserialize};
+use std::{collections::HashMap, sync::Arc};
 
+use serde::{Serialize, Deserialize};
+use tokio::sync::Mutex;
+
+pub type BeaconDiffMap = HashMap<(String, String), BeaconDiff>;
+pub type BeaconDiffMapArc = Arc<Mutex<BeaconDiffMap>>;
 
 #[derive(Serialize, Deserialize)]
 #[derive(PartialEq)]

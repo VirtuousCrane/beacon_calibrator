@@ -69,8 +69,8 @@ mod tests {
     #[tokio::test]
     async fn get_beacon_diff_test() {
         // Setup
-        let mut map: HashMap<String, BeaconDiff> = HashMap::new();
-        map.insert("FF:FF:FF:FF:FF:FF".into(), BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -40, count: 1, diff: 0 });
+        let mut map: BeaconDiffMap = HashMap::new();
+        map.insert(("dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1".into(), "FF:FF:FF:FF:FF:FF".into()), BeaconDiff { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -40, count: 1, diff: 0 });
 
         let map_arc = Arc::new(Mutex::new(map));
         let beacon = Beacon { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69 };
@@ -90,8 +90,8 @@ mod tests {
     #[tokio::test]
     async fn get_beacon_diff_test_empty_map() {
         // Setup
-        let map: HashMap<String, BeaconDiff> = HashMap::new();
-        let map_arc = Arc::new(Mutex::new(map));
+        let map: BeaconDiffMap = HashMap::new();
+        let map_arc: BeaconDiffMapArc = Arc::new(Mutex::new(map));
         let beacon = Beacon { mac_address: "FF:FF:FF:FF:FF:FF".into(), rssi: -69 };
         let beacon_list = BeaconList { 
             device_identifier: "dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1".into(),
@@ -109,8 +109,8 @@ mod tests {
     #[tokio::test]
     async fn get_beacon_diff_test_empty_list() {
         // Setup
-        let map: HashMap<String, BeaconDiff> = HashMap::new();
-        let map_arc = Arc::new(Mutex::new(map));
+        let map: BeaconDiffMap = HashMap::new();
+        let map_arc: BeaconDiffMapArc = Arc::new(Mutex::new(map));
         let beacon_list = BeaconList { 
             device_identifier: "dc1c8b16-5faf-4bd8-a34e-8f0fb3d63bf1".into(),
             beacons: Vec::new()
